@@ -92,9 +92,10 @@ scDC_noClustering <- function (cellTypes = NULL,
   # thetastar <-  do.call(cbind, parallel::mclapply(1:nboot, function(i){
   #   .calculateProp(bootsam[i,], df)
   # }, mc.cores = ncores))
-  calProp_star <- parallel::mclapply(1:nboot, function(i){
+  cl <- makeCluster(getOption("cl.cores", ncores))
+  calProp_star <- parallel::parLapply(cl, 1:nboot, function(i, bootsam, df, .calculateProp){
     .calculateProp(bootsam[i,], df)
-  }, mc.cores = ncores)
+  }, bootsam, df, .calculateProp)
 
   thetastar <-  do.call(cbind, lapply(calProp_star, "[[", "prop"))
   nstar <- do.call(cbind, lapply(calProp_star, "[[", "count"))
@@ -149,9 +150,9 @@ scDC_noClustering <- function (cellTypes = NULL,
       }
 
       u <- list()
-      u <- parallel::mclapply(1:n, function(i){
+      u <- parallel::parLapply(cl, 1:n, function(i, x, df, .calculateProp){
         .calculateProp(x[-i], df)$prop
-      }, mc.cores = ncores)
+      }, x, df, .calculateProp)
 
       u <- do.call(cbind, u)
       uu <- matrix(rep(rowMeans(u), ncol(u)), ncol = ncol(u)) - u
@@ -214,7 +215,7 @@ scDC_noClustering <- function (cellTypes = NULL,
   }
 
   res <- rbind(res_BCa, res_percentile, res_multinom)
-
+  stopCluster(cl)
 
   return(list(results = res,
               thetastar = thetastar,
